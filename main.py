@@ -4,6 +4,8 @@ import ruamel.yaml
 from packaging import version
 import random
 
+TARGET_VERSION = "4.9"
+
 IDX_DAY_OF_MONTH = 2
 IDX_DAY_OF_WEEK = 4
 
@@ -75,11 +77,11 @@ def process_ciops(data, filename):
     elif 'version_bounds' in section_latest[release_ref]:
         ver = section_latest[release_ref].get('version_bounds', {}).get('upper')
 
-    if not ver or not version_lower_than_or_equal(ver, '4.9'):
+    if not ver or not version_lower_than_or_equal(ver, TARGET_VERSION):
         return False
 
     pending_replacements = []
-    print('Found version', ver, 'lower than 4.9 in', filename)
+    print('Found version', ver, 'lower than TARGET_VERSION in', filename)
     for test in data.get('tests', []):
         pending_replacements.extend(replace(test))
 
@@ -101,20 +103,20 @@ def process_job(data, filename):
                 print('unrecognised base_ref', base_ref)
                 continue
             ver = base_ref[1]
-            if ver and version_lower_than_or_equal(ver, '4.9'):
+            if ver and version_lower_than_or_equal(ver, TARGET_VERSION):
                 version_satisfied = True
                 break
 
         if 'job-release' in periodic.get('labels', {}):
             ver = periodic.get('labels', {}).get('job-release')
-            if ver and version_lower_than_or_equal(ver, '4.9'):
+            if ver and version_lower_than_or_equal(ver, TARGET_VERSION):
                 version_satisfied = True
 
         if not version_satisfied:
             return False
 
         pending_replacements = []
-        print('Found version', ver, 'lower than 4.9 in', filename)
+        print(f'Found version {ver} lower than {TARGET_VERSION} in {filename}')
         pending_replacements.extend(replace(periodic))
 
         return pending_replacements
@@ -122,7 +124,6 @@ def process_job(data, filename):
 
 if __name__ == '__main__':
     FILENAME = sys.argv[1]
-    # print('processing', FILENAME)
 
     with open(FILENAME, 'r', encoding='utf-8') as fp:
         ycontent = fp.read()
@@ -137,19 +138,6 @@ if __name__ == '__main__':
         if ret or ret2:
             file_changed = True
 
-
-    # print('pending', pending)
-    # if pending:
-    #     with open(FILENAME, 'r', encoding='utf-8') as fp:
-    #         content = fp.read()
-    #     for item in pending:
-    #         content = content.replace(item[0], item[1])
-
-    #     with open(FILENAME, 'w', encoding='utf-8') as fp:
-    #         fp.write(content)
-
     if file_changed:
         with open(FILENAME, 'w', encoding='utf-8') as fp:
             yaml.dump_all(all_data, fp)
-
-    # print('done')
