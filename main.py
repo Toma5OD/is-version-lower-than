@@ -3,6 +3,14 @@ import re
 import ruamel.yaml
 from packaging import version
 import random
+import logging
+
+# This line has been commened out as it is the verbose  logging option.
+# comment in this line and comment out the non verbose option below if required for more complex logging.
+# logging.basicConfig(level=logging.INFO)
+
+# This is the non verbose logging view
+logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 TARGET_VERSION = "4.9"
 
@@ -25,41 +33,41 @@ def cron_string():
 def replace(test):
     if 'interval' in test:
         name = test['as'] if 'as' in test else test['name']
-        print('found test', name, 'with interval', test['interval'])
+        logging.info(f'found test {name} with interval {test["interval"]}')
         if name.startswith('promote-'):
-            print('found promote test', name)
+            logging.info(f'found promote test {name}')
             return []
         interval = test['interval'].strip()
         if interval.endswith('h') and int(interval[:-1]) < 24 * 7 * 2:
-            print('interval', interval, 'is less than 2 weeks')
+            logging.info(f'interval {interval} is less than 2 weeks')
             del test['interval']
             test["cron"] = cron_string()
             return ["yes"]
         elif interval.endswith('m') and int(interval[:-1]) < 24 * 7 * 2 * 60:
-            print('interval', interval, 'is less than 2 weeks')
+            logging.info(f'interval {interval} is less than 2 weeks')
             del test['interval']
             test["cron"] = cron_string()
             return ["yes"]
         else:
-            print('unrecognised interval', interval)
+            logging.info(f'unrecognised interval {interval}')
             return []
     if 'cron' in test:
         name = test['as'] if 'as' in test else test['name']
-        print('found test', name, 'with cron', test['cron'])
+        logging.info(f'found test {name} with cron {test["cron"]}')
         cron = re.split(r'\s+', test['cron'].strip())
         if len(cron) == 1 and cron[0] == '@daily':
             del test['cron']
             test["cron"] = cron_string()
             return ["yes"]
         elif len(cron) == 5 and cron[IDX_DAY_OF_MONTH] == '*' and cron[IDX_DAY_OF_WEEK] == '*':
-            print('cron', cron, 'is less than bi-weekly')
+            logging.info(f'cron {cron} is less than bi-weekly')
             del test['cron']
             test["cron"] = cron_string()
             return ["yes"]
         elif len(cron) == 5:
-            print('cron is satisfied')
+            logging.info('cron is satisfied')
         else:
-            print('unrecognised cron', cron)
+            logging.info(f'unrecognised cron {cron}')
 
     return []
 
@@ -81,7 +89,7 @@ def process_ciops(data, filename):
         return False
 
     pending_replacements = []
-    print('Found version', ver, 'lower than TARGET_VERSION in', filename)
+    logging.info(f'Found version {ver} lower than TARGET_VERSION in {filename}')
     for test in data.get('tests', []):
         pending_replacements.extend(replace(test))
 
@@ -100,7 +108,7 @@ def process_job(data, filename):
         for ref in periodic.get('extra_refs', []):
             base_ref = ref.get('base_ref', '').split('-')
             if len(base_ref) != 2:
-                print('unrecognised base_ref', base_ref)
+                logging.info(f'unrecognised base_ref {base_ref}')
                 continue
             ver = base_ref[1]
             if ver and version_lower_than_or_equal(ver, TARGET_VERSION):
@@ -116,7 +124,7 @@ def process_job(data, filename):
             return False
 
         pending_replacements = []
-        print(f'Found version {ver} lower than {TARGET_VERSION} in {filename}')
+        logging.info(f'Found version {ver} lower than {TARGET_VERSION} in {filename}')
         pending_replacements.extend(replace(periodic))
 
         return pending_replacements
