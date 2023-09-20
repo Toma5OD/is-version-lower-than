@@ -29,47 +29,79 @@ def version_lower_than_or_equal(ver, target):
 def cron_string():
     return str(random.randint(0, 59)) + ' ' + str(random.randint(0, 23)) + ' ' + "*/" + str(random.randint(13, 14)) + " * *"
 
+def process_interval(test):
+    changes_made = []
+    name = test['as'] if 'as' in test else test['name']
+    logging.info(f'found test {name} with interval {test["interval"]}')
+    
+    if name.startswith('promote-'):
+        logging.info(f'found promote test {name}')
+        return []
+        
+    interval = test['interval'].strip()
+    if interval.endswith('h') and int(interval[:-1]) < 24 * 7 * 2:
+        logging.info(f'interval {interval} is less than 2 weeks')
+        del test['interval']
+        test["cron"] = cron_string()
+        changes_made.append("yes")
+    elif interval.endswith('m') and int(interval[:-1]) < 24 * 7 * 2 * 60:
+        logging.info(f'interval {interval} is less than 2 weeks')
+        del test['interval']
+        test["cron"] = cron_string()
+        changes_made.append("yes")
+    else:
+        logging.info(f'unrecognised interval {interval}')
+        
+    return changes_made
+
+def process_cron(test):
+    changes_made = []
+    name = test['as'] if 'as' in test else test['name']
+    logging.info(f'found test {name} with cron {test["cron"]}')
+    
+    cron = re.split(r'\s+', test['cron'].strip())
+    if len(cron) == 1 and cron[0] == '@daily':
+        logging.info(f'cron {cron} is daily')
+        del test['cron']
+        test["cron"] = cron_string()
+        changes_made.append("yes")
+    elif len(cron) == 5 and cron[IDX_DAY_OF_MONTH] == '*' and cron[IDX_DAY_OF_WEEK] == '*':
+        logging.info(f'cron {cron} is less than bi-weekly')
+        del test['cron']
+        test["cron"] = cron_string()
+        changes_made.append("yes")
+    else:
+        logging.info(f'unrecognised cron {cron}')
+        
+    return changes_made
+
+def process_promote(test):
+    changes_made = []
+    name = test['as'] if 'as' in test else test['name']
+    logging.info(f'found promote test {name}')
+    
+    # Your specific logic for 'promote-' tests can go here
+    # For example, let's say you want to add a 'promote' key to the test dict
+    test['promote'] = True
+    changes_made.append("promoted")
+
+    return changes_made
 
 def replace(test):
-    if 'interval' in test:
-        name = test['as'] if 'as' in test else test['name']
-        logging.info(f'found test {name} with interval {test["interval"]}')
-        if name.startswith('promote-'):
-            logging.info(f'found promote test {name}')
-            return []
-        interval = test['interval'].strip()
-        if interval.endswith('h') and int(interval[:-1]) < 24 * 7 * 2:
-            logging.info(f'interval {interval} is less than 2 weeks')
-            del test['interval']
-            test["cron"] = cron_string()
-            return ["yes"]
-        elif interval.endswith('m') and int(interval[:-1]) < 24 * 7 * 2 * 60:
-            logging.info(f'interval {interval} is less than 2 weeks')
-            del test['interval']
-            test["cron"] = cron_string()
-            return ["yes"]
-        else:
-            logging.info(f'unrecognised interval {interval}')
-            return []
-    if 'cron' in test:
-        name = test['as'] if 'as' in test else test['name']
-        logging.info(f'found test {name} with cron {test["cron"]}')
-        cron = re.split(r'\s+', test['cron'].strip())
-        if len(cron) == 1 and cron[0] == '@daily':
-            del test['cron']
-            test["cron"] = cron_string()
-            return ["yes"]
-        elif len(cron) == 5 and cron[IDX_DAY_OF_MONTH] == '*' and cron[IDX_DAY_OF_WEEK] == '*':
-            logging.info(f'cron {cron} is less than bi-weekly')
-            del test['cron']
-            test["cron"] = cron_string()
-            return ["yes"]
-        elif len(cron) == 5:
-            logging.info('cron is satisfied')
-        else:
-            logging.info(f'unrecognised cron {cron}')
-
-    return []
+    changes_made = []
+    
+    name = test['as'] if 'as' in test else test['name']
+    
+    if name.startswith('promote-'):
+        changes_made.extend(process_promote(test))
+    elif 'interval' in test:
+        changes_made.extend(process_interval(test))
+    elif 'cron' in test:
+        changes_made.extend(process_cron(test))
+        
+    # TODO: Edit this section later for other responsibilities
+    
+    return changes_made
 
 
 def process_ciops(data, filename):
