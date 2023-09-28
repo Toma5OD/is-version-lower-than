@@ -41,7 +41,7 @@ def process_interval(test, ver):
     changes_made = []
     # Get the name of the test from 'as' or 'name' fields
     name = test['as'] if 'as' in test else test['name']
-    logging.info(f'found test {name} with interval \033[92m{test["interval"]}\033[0m')
+    logging.info(f'found test {name} with interval {test["interval"]}')
 
     if name.startswith('promote-'):
         logging.info(f'found promote test {name}')
@@ -65,7 +65,7 @@ def process_interval(test, ver):
 def process_cron(test, ver):
     changes_made = []
     name = test['as'] if 'as' in test else test['name']
-    logging.info(f'found test {name} with cron \033[92m{test["cron"]}\033[0m')
+    logging.info(f'found test \033[94m{name}\033[0m with cron \033[92m{test["cron"]}\033[0m')
     
     # Update the cron based on the version_number
     test["cron"] = cron_string(ver)  # Assuming cron_string() can accept a version number
@@ -76,7 +76,7 @@ def process_cron(test, ver):
 def process_promote(test):
     changes_made = []
     name = test['as'] if 'as' in test else test['name']
-    logging.info(f'found promote test {name}')
+    logging.info(f'Found promote test {name}')
     
     # Your specific logic for 'promote-' tests can go here
     # For example, let's say you want to add a 'promote' key to the test dict
