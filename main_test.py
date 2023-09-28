@@ -3,12 +3,17 @@ import re
 import ruamel.yaml
 from packaging import version
 import random
-import argparse
-import os
+import logging
 
+# This line has been commened out as it is the verbose  logging option.
+# comment in this line and comment out the non verbose option below if required for more complex logging.
+# logging.basicConfig(level=logging.INFO)
 
-IDX_DAY_OF_MONTH = 2
-IDX_DAY_OF_WEEK = 4
+# This is the non verbose logging view
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+
+# Check for yaml files that are equal to or lower than the target version.
+TARGET_VERSION = "4.13"
 
 def version_lower_than_or_equal(ver, target):
     ver_v = version.parse(ver)
@@ -22,47 +27,82 @@ def version_lower_than_or_equal(ver, target):
 def cron_string():
     return str(random.randint(0, 59)) + ' ' + str(random.randint(0, 23)) + ' ' + "*/" + str(random.randint(13, 14)) + " * *"
 
+# Modify fix_cron_and_interval to accept filename
+def fix_cron_and_interval(test, filename):
+    if 'cron' in test and 'interval' in test:
+        # Add the filename to a .txt file
+        with open("files-with-cronAndInterval.txt", "a") as f:
+            f.write(f"{filename}\n")
+        del test['interval']  # Delete the 'interval' field
+        return True  # Return True if changes are made
+    return False  # Return False otherwise
 
-def replace(test):
-    if 'interval' in test:
-        name = test['as'] if 'as' in test else test['name']
-        print('found test', name, 'with interval', test['interval'])
-        if name.startswith('promote-'):
-            print('found promote test', name)
-            return []
-        interval = test['interval'].strip()
-        if interval.endswith('h') and int(interval[:-1]) < 24 * 7 * 2:
-            print('interval', interval, 'is less than 2 weeks')
-            del test['interval']
-            test["cron"] = cron_string()
-            return ["yes"]
-        elif interval.endswith('m') and int(interval[:-1]) < 24 * 7 * 2 * 60:
-            print('interval', interval, 'is less than 2 weeks')
-            del test['interval']
-            test["cron"] = cron_string()
-            return ["yes"]
-        else:
-            print('unrecognised interval', interval)
-            return []
+def process_interval(test, version_number):
+    changes_made = []
+    # Get the name of the test from 'as' or 'name' fields
+    name = test['as'] if 'as' in test else test['name']
+    logging.info(f'found test {name} with interval {test["interval"]}')
+
+    if name.startswith('promote-'):
+        logging.info(f'found promote test {name}')
+        return []
+        
+    interval = test['interval'].strip()
+    
+    # Remove the interval if both cron and interval exist
     if 'cron' in test:
-        name = test['as'] if 'as' in test else test['name']
-        print('found test', name, 'with cron', test['cron'])
-        cron = re.split(r'\s+', test['cron'].strip())
-        if len(cron) == 1 and cron[0] == '@daily':
-            del test['cron']
-            test["cron"] = cron_string()
-            return ["yes"]
-        elif len(cron) == 5 and cron[IDX_DAY_OF_MONTH] == '*' and cron[IDX_DAY_OF_WEEK] == '*':
-            print('cron', cron, 'is less than bi-weekly')
-            del test['cron']
-            test["cron"] = cron_string()
-            return ["yes"]
-        elif len(cron) == 5:
-            print('cron is satisfied')
-        else:
-            print('unrecognised cron', cron)
+        del test['interval']
+        changes_made.append(f"Removed interval for {name}")
+    
+    # Replace the interval with a cron value based on the version number if only interval exists
+    elif 'cron' not in test:
+        del test['interval']
+        test['cron'] = cron_string(version_number)  # Assuming cron_string() can accept a version number
+        changes_made.append(f"Replaced interval with cron for {name}")
 
-    return []
+    return changes_made
+
+def process_cron(test, version_number):
+    changes_made = []
+    name = test['as'] if 'as' in test else test['name']
+    logging.info(f'found test {name} with cron {test["cron"]}')
+    
+    # Update the cron based on the version_number
+    test["cron"] = cron_string(version_number)  # Assuming cron_string() can accept a version number
+    changes_made.append(f"Updated cron for {name} based on version {version_number}")
+
+    return changes_made
+
+def process_promote(test):
+    changes_made = []
+    name = test['as'] if 'as' in test else test['name']
+    logging.info(f'found promote test {name}')
+    
+    # Your specific logic for 'promote-' tests can go here
+    # For example, let's say you want to add a 'promote' key to the test dict
+    test['promote'] = True
+    changes_made.append("promoted")
+
+    return changes_made
+
+def replace(test, filename):
+    changes_made = []
+
+    if fix_cron_and_interval(test, filename):
+        changes_made.append("fixed_cron_and_interval")
+
+    name = test['as'] if 'as' in test else test['name']
+    
+    if name.startswith('promote-'):
+        changes_made.extend(process_promote(test))
+    elif 'interval' in test:
+        changes_made.extend(process_interval(test))
+    elif 'cron' in test:
+        changes_made.extend(process_cron(test))
+        
+    # TODO: Edit this section later for other responsibilities
+    
+    return changes_made
 
 
 def process_ciops(data, filename):
@@ -78,13 +118,13 @@ def process_ciops(data, filename):
     elif 'version_bounds' in section_latest[release_ref]:
         ver = section_latest[release_ref].get('version_bounds', {}).get('upper')
 
-    if not ver or not version_lower_than_or_equal(ver, '4.9'):
+    if not ver or not version_lower_than_or_equal(ver, TARGET_VERSION):
         return False
 
     pending_replacements = []
-    print('Found version', ver, 'lower than 4.9 in', filename)
+    logging.info(f'Found version {ver} lower than TARGET_VERSION in {filename}')
     for test in data.get('tests', []):
-        pending_replacements.extend(replace(test))
+        pending_replacements.extend(replace(test, filename))
 
     return pending_replacements
 
@@ -101,62 +141,44 @@ def process_job(data, filename):
         for ref in periodic.get('extra_refs', []):
             base_ref = ref.get('base_ref', '').split('-')
             if len(base_ref) != 2:
-                print('unrecognised base_ref', base_ref)
+                logging.info(f'unrecognised base_ref {base_ref}')
                 continue
             ver = base_ref[1]
-            if ver and version_lower_than_or_equal(ver, '4.9'):
+            if ver and version_lower_than_or_equal(ver, TARGET_VERSION):
                 version_satisfied = True
                 break
 
         if 'job-release' in periodic.get('labels', {}):
             ver = periodic.get('labels', {}).get('job-release')
-            if ver and version_lower_than_or_equal(ver, '4.9'):
+            if ver and version_lower_than_or_equal(ver, TARGET_VERSION):
                 version_satisfied = True
 
         if not version_satisfied:
             return False
 
         pending_replacements = []
-        print('Found version', ver, 'lower than 4.9 in', filename)
-        pending_replacements.extend(replace(periodic))
+        logging.info(f'Found version {ver} lower than {TARGET_VERSION} in {filename}')
+        pending_replacements.extend(replace(periodic, filename))
 
         return pending_replacements
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Process YAML files.')
-    parser.add_argument('--config_folder', type=str, help='Path to the config folder')
-    parser.add_argument('--jobs_folder', type=str, help='Path to the jobs folder')
-    args = parser.parse_args()
+    FILENAME = sys.argv[1]
 
-    if not args.config_folder:
-        args.config_folder = input("Enter the path of the config folder: ")
-    if not args.jobs_folder:
-        args.jobs_folder = input("Enter the path of the jobs folder: ")
-
-    target_version = input("Enter the target version for changes: ")
-    change_type = input("Enter the type of changes to make: ")
+    with open(FILENAME, 'r', encoding='utf-8') as fp:
+        ycontent = fp.read()
 
     yaml = ruamel.yaml.YAML()
+    pending = []
+    all_data = list(yaml.load_all(ycontent))
+    file_changed = False
+    for data in all_data:
+        ret = process_ciops(data, FILENAME)
+        ret2 = process_job(data, FILENAME)
+        if ret or ret2:
+            file_changed = True
 
-    for folder in [args.config_folder, args.jobs_folder]:
-        for filename in os.listdir(folder):
-            if filename.endswith(".yaml"):
-                FILENAME = os.path.join(folder, filename)
-                print(f'Processing {FILENAME}...')
-
-                with open(FILENAME, 'r', encoding='utf-8') as fp:
-                    ycontent = fp.read()
-
-                all_data = list(yaml.load_all(ycontent))
-                file_changed = False
-
-                for data in all_data:
-                    ret = process_ciops(data, FILENAME)
-                    ret2 = process_job(data, FILENAME)
-                    if ret or ret2:
-                        file_changed = True
-
-                if file_changed:
-                    with open(FILENAME, 'w', encoding='utf-8') as fp:
-                        yaml.dump_all(all_data, fp)
+    if file_changed:
+        with open(FILENAME, 'w', encoding='utf-8') as fp:
+            yaml.dump_all(all_data, fp)

@@ -1,0 +1,1 @@
+/home/Toma5OD/dev/release/ci-operator/config/opendatahub-io/odh-manifests/opendatahub-io-odh-manifests-master.yaml
