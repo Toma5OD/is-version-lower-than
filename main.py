@@ -24,7 +24,7 @@ def version_lower_than_or_equal(ver, target):
     return (ver_v < target_v or ver_v == target_v)
 
 
-def cron_string():
+def cron_string(ver):
     return str(random.randint(0, 59)) + ' ' + str(random.randint(0, 23)) + ' ' + "*/" + str(random.randint(13, 14)) + " * *"
 
 # Modify fix_cron_and_interval to accept filename
@@ -37,11 +37,11 @@ def fix_cron_and_interval(test, filename):
         return True  # Return True if changes are made
     return False  # Return False otherwise
 
-def process_interval(test, version_number):
+def process_interval(test, ver):
     changes_made = []
     # Get the name of the test from 'as' or 'name' fields
     name = test['as'] if 'as' in test else test['name']
-    logging.info(f'found test {name} with interval {test["interval"]}')
+    logging.info(f'found test {name} with interval \033[92m{test["interval"]}\033[0m')
 
     if name.startswith('promote-'):
         logging.info(f'found promote test {name}')
@@ -57,19 +57,19 @@ def process_interval(test, version_number):
     # Replace the interval with a cron value based on the version number if only interval exists
     elif 'cron' not in test:
         del test['interval']
-        test['cron'] = cron_string(version_number)  # Assuming cron_string() can accept a version number
+        test['cron'] = cron_string(ver)  # Assuming cron_string() can accept a version number
         changes_made.append(f"Replaced interval with cron for {name}")
 
     return changes_made
 
-def process_cron(test, version_number):
+def process_cron(test, ver):
     changes_made = []
     name = test['as'] if 'as' in test else test['name']
-    logging.info(f'found test {name} with cron {test["cron"]}')
+    logging.info(f'found test {name} with cron \033[92m{test["cron"]}\033[0m')
     
     # Update the cron based on the version_number
-    test["cron"] = cron_string(version_number)  # Assuming cron_string() can accept a version number
-    changes_made.append(f"Updated cron for {name} based on version {version_number}")
+    test["cron"] = cron_string(ver)  # Assuming cron_string() can accept a version number
+    changes_made.append(f"Updated cron for {name} based on version {ver}")
 
     return changes_made
 
@@ -85,7 +85,7 @@ def process_promote(test):
 
     return changes_made
 
-def replace(test, filename):
+def replace(test, filename, ver):
     changes_made = []
 
     if fix_cron_and_interval(test, filename):
@@ -96,9 +96,9 @@ def replace(test, filename):
     if name.startswith('promote-'):
         changes_made.extend(process_promote(test))
     elif 'interval' in test:
-        changes_made.extend(process_interval(test))
+        changes_made.extend(process_interval(test, ver))
     elif 'cron' in test:
-        changes_made.extend(process_cron(test))
+        changes_made.extend(process_cron(test, ver))
         
     # TODO: Edit this section later for other responsibilities
     
@@ -122,9 +122,9 @@ def process_ciops(data, filename):
         return False
 
     pending_replacements = []
-    logging.info(f'Found version {ver} lower than TARGET_VERSION in {filename}')
+    logging.info(f'Found version \033[91m{ver}\033[0m in \033[94m{filename}\033[0m')
     for test in data.get('tests', []):
-        pending_replacements.extend(replace(test, filename))
+        pending_replacements.extend(replace(test, filename, ver))
 
     return pending_replacements
 
@@ -157,8 +157,8 @@ def process_job(data, filename):
             return False
 
         pending_replacements = []
-        logging.info(f'Found version {ver} lower than {TARGET_VERSION} in {filename}')
-        pending_replacements.extend(replace(periodic, filename))
+        logging.info(f'Found version {ver} lower than {TARGET_VERSION} in \033[94m{filename}\033[0m')
+        pending_replacements.extend(replace(periodic, filename, ver))
 
         return pending_replacements
 
