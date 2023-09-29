@@ -33,8 +33,10 @@ def cron_string(ver):
     #     # Bi-weekly (existing, so no change)
     #     return f"{random.randint(0, 59)} {random.randint(0, 23)} */14 * *"
     else:
-        # Older than 4.12, bi-weekly or monthly
-        return f"{random.randint(0, 59)} {random.randint(0, 23)} */{random.choice([14, 30])} * *"
+        # Older than 4.12, bi-weekly at random time between 1:00 and 10:00
+        # First occurrence between 5th and 10th day, second between 15th and 25th day
+        cron_string = lambda: f"{random.randint(1, 59)} {random.randint(1, 10)} {random.choice([5, 6, 7, 8, 9, 10])},{random.randint(15, 25)} * *"
+        return cron_string()
 
 def process_interval(test, ver):
     # logging.info("We entered process_interval")
@@ -54,7 +56,6 @@ def process_interval(test, ver):
 
     logging.info(f'Found test in {name} with interval {test["interval"]}')
 
-    # Continue with the original logic
     if 'interval' in test:
         interval = test['interval'].strip()
         
