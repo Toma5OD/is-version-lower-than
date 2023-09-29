@@ -24,7 +24,7 @@ def version_lower_than_or_equal(ver, target):
     return (ver_v < target_v or ver_v == target_v)
 
 def cron_string(ver):
-    logging.info("We entered cron_string")
+    # logging.info("We entered cron_string")
     if ver == "4.13":
         # Weekly (Saturday or Sunday)
         return f"{random.randint(0, 59)} {random.randint(0, 23)} * * {random.choice([6, 7])}"
@@ -37,7 +37,7 @@ def cron_string(ver):
         return f"{random.randint(0, 59)} {random.randint(0, 23)} */{random.choice([14, 30])} * *"
 
 def process_interval(test, ver):
-    logging.info("We entered process_interval")
+    # logging.info("We entered process_interval")
     changes_made = []
     # Get the name of the test from 'as' or 'name' fields
     name = test['as'] if 'as' in test else test['name']
@@ -69,7 +69,7 @@ def process_interval(test, ver):
     return changes_made
 
 def process_cron(test, ver):
-    logging.info("We entered process_cron")
+    # logging.info("We entered process_cron")
     changes_made = []
     name = test['as'] if 'as' in test else test['name']
     logging.info(f'Found test in \033[94m{name}\033[0m with cron \033[92m{test["cron"]}\033[0m')
@@ -90,7 +90,7 @@ def process_cron(test, ver):
     return changes_made
 
 def process_promote(test):
-    logging.info("We entered process_promote")
+    # logging.info("We entered process_promote")
     changes_made = []
     name = test['as'] if 'as' in test else test['name']
     logging.info(f'Found promote test {name}')
@@ -105,7 +105,7 @@ def process_promote(test):
 def replace(test, ver, filename):
     changes_made = []
 
-    logging.info(f"We entered replace for file: {filename}")
+    # logging.info(f"We entered replace for file: {filename}")
 
     # Skip if version is 4.12
     if ver == "4.12":
@@ -123,8 +123,8 @@ def replace(test, ver, filename):
     return changes_made
 
 def process_ciops(data, filename):
-    logging.info("We entered process_ciops")
-    logging.info(f"Number of tests in {filename}: {len(data.get('tests', []))}")
+    # logging.info("We entered process_ciops")
+    # logging.info(f"Number of tests in {filename}: {len(data.get('tests', []))}")
     section_latest = data.get('releases', {}).get('latest', {})
     if not section_latest:
         return []
@@ -154,17 +154,17 @@ def process_ciops(data, filename):
     pending_replacements = []
     logging.info(f'Found version \033[91m{ver}\033[0m in \033[94m{filename}\033[0m')
     for test in data.get('tests', []):
-        logging.info(f"Processing test: {test.get('name', 'Unknown')} in file: {filename}")
-        pending_replacements.extend(replace(test, ver, filename))  # include filename here
+        # logging.info(f"Processing test: {test.get('name', 'Unknown')} in file: {filename}")
+        pending_replacements.extend(replace(test, ver, filename)) 
 
 
-    print(f"Returning from process_ciops: {pending_replacements}, type: {type(pending_replacements)}")
+    # print(f"Returning from process_ciops: {pending_replacements}, type: {type(pending_replacements)}")
     return pending_replacements
 
 # Processes 'job' data, replacing cron strings if they meet certain conditions.
 def process_job(data, filename):
-    logging.info("We entered process_job")
-    logging.info(f"Number of tests in {filename}: {len(data.get('periodics', []))}")
+    # logging.info("We entered process_job")
+    # logging.info(f"Number of tests in {filename}: {len(data.get('periodics', []))}")
 
     # Skip if filename starts with "promote-" or "mirror-nightly-image"
     if filename.startswith("promote-") or filename.startswith("mirror-nightly-image"):
@@ -206,11 +206,11 @@ def process_job(data, filename):
         pending_replacements = []
         logging.info(f'Found version {ver} lower than {TARGET_VERSION} in \033[94m{filename}\033[0m')
         for periodic in data.get('periodics', []):
-            logging.info(f"Processing test: {periodic.get('name', 'Unknown')} in file: {filename}")
+            # logging.info(f"Processing test: {periodic.get('name', 'Unknown')} in file: {filename}")
             pending_replacements.extend(replace(periodic, filename, ver))  # include filename here
 
 
-        print(f"Returning from process_job: {pending_replacements}, type: {type(pending_replacements)}")
+        # print(f"Returning from process_job: {pending_replacements}, type: {type(pending_replacements)}")
         return pending_replacements
     return []
 
