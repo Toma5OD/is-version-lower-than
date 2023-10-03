@@ -27,7 +27,7 @@ This document outlines the significant changes made to the codebase for aligning
 
 ### Change Logging
 - Added a function `log_changes_to_txt` that logs changes made to YAML files.
-
+- Can be easily removed.
 ### Cron Schedules
 - For version 4.13: 
     - The cron is set to run weekly.
@@ -53,13 +53,20 @@ Check the [changes_log.txt](./changes_log.txt) for a detailed list of changes ma
 
 
 ---
-
 ## Possible Issues
 
 ### Unrecognized base_ref ['master']
 - If you encounter this issue, it suggests that the `base_ref` is not in the expected format.
+- This was in the original script and it was dealt with in a similar way. I just don't fully understand it.
+![Unrecognized base_ref Example](./Public/3.png)
 
-### Version 4.12.0-0
-- If the version 4.12.0-0 appears, additional considerations may need to be made.
+### 4.12.0-0
+- This is probably fine but I'm not confident and I would like help understanding if this differs from 4.12 completely as it is a 4.11 file or if it is something to be concerned about.
+- The code currently does not carry out changes on anything with 4.12.0-0 but this can easily be resoleved.
+![4.12.0-0 Example](./Public/1.png)
 
-For both issues, it's recommended to discuss them in a 1-1 setting for better clarity and resolution.
+### Nightly
+- This is likely fine but I am including it for clarification.
+![Nightly Example](./Public/2.png)
+
+For all issues, it's recommended to discuss them in a 1-1 setting for better clarity and resolution.
