@@ -65,8 +65,4 @@ Check the [changes_log.txt](./changes_log.txt) for a detailed list of changes ma
 - The code currently does not carry out changes on anything with 4.12.0-0 but this can easily be resoleved.
 ![4.12.0-0 Example](./Public/1.png)
 
-### Nightly
-- This is likely fine but I am including it for clarification.
-![Nightly Example](./Public/2.png)
-
 For all issues, it's recommended to discuss them in a 1-1 setting for better clarity and resolution.
