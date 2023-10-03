@@ -4,6 +4,7 @@ import ruamel.yaml
 from packaging import version
 import random
 import logging
+import os
 
 # This line has been commened out as it is the verbose  logging option.
 # comment in this line and comment out the non verbose option below if required for more complex logging.
@@ -16,6 +17,8 @@ logging.basicConfig(level=logging.INFO, format='%(message)s')
 TARGET_VERSION = "4.13"
 
 def version_lower_than_or_equal(ver, target):
+    if ver == "4.12" or ver.startswith("4.12.0-0"):
+        return False
     ver_v = version.parse(ver)
     if ver.find("priv") != -1:
         v = ver.split("-")
@@ -202,7 +205,7 @@ def process_job(data, filename):
                 version_satisfied = True
 
         if not version_satisfied:
-            return []
+            return [False]
 
         pending_replacements = []
         logging.info(f'Found version {ver} lower than {TARGET_VERSION} in \033[94m{filename}\033[0m')
@@ -214,6 +217,14 @@ def process_job(data, filename):
         # print(f"Returning from process_job: {pending_replacements}, type: {type(pending_replacements)}")
         return pending_replacements
     return []
+
+def log_changes_to_txt(changes, filename):
+    log_path = os.path.join(os.getcwd(), 'changes_log.txt')
+    with open(log_path, 'a') as f:
+        f.write(f"Changes in {filename}:\n")
+        for change in changes:
+            f.write(f"{change}\n")
+        f.write("\n")
 
 if __name__ == '__main__':
     FILENAME = sys.argv[1]
@@ -236,6 +247,8 @@ if __name__ == '__main__':
             file_changed = True
     
     if file_changed:
+        logging.info("Changes detected, updating log and YAML file.")
+        log_changes_to_txt(changes_made, FILENAME)
         # Apply your changes to all_data here
         with open(FILENAME, 'w', encoding='utf-8') as fp:
             yaml.dump_all(all_data, fp)
