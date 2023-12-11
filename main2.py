@@ -5,10 +5,9 @@ from packaging import version
 import random
 import logging
 import os
+from croniter import croniter
 
-# This line has been commened out as it is the verbose  logging option.
-# comment in this line and comment out the non verbose option below if required for more complex logging.
-# logging.basicConfig(level=logging.INFO)
+# THIS FILE SIMPLY REPLACES ALL CRONS AND REPLACES ALL INTERVALS THAT AREN'T WEARLY, ANNUALLY, OR MONTHLY.
 
 # This is the non verbose logging view
 logging.basicConfig(level=logging.INFO, format='%(message)s')
@@ -16,30 +15,17 @@ logging.basicConfig(level=logging.INFO, format='%(message)s')
 # Check for yaml files that are equal to or lower than the target version.
 TARGET_VERSION = "4.13"
 
-def version_lower_than_or_equal(ver, target):
-    if ver == "4.12" or ver.startswith("4.12.0-0"):
-        return False
-    ver_v = version.parse(ver)
-    if "priv" in ver:
-        v = ver.split("-")
-        ver_v = version.parse(v[0])
-    target_v = version.parse(target)
-    return (ver_v < target_v or ver_v == target_v)
+def version_lower_than_or_equal(ver, target_ver):
+    return ver == target_ver
+
+# Set of special cron strings to keep
+keep_intervals = {'@yearly', '@annually', '@monthly'}
 
 def cron_string(ver):
     # logging.info("We entered cron_string")
     if ver == "4.13":
         # Weekly (Saturday or Sunday)
         return f"{random.randint(0, 59)} {random.randint(0, 23)} * * {random.choice([6, 0])}"
-    # COMMENTED OUT LINE AS 4.12 will be ignored.
-    # elif ver == "4.12":
-    #     # Bi-weekly (existing, so no change)
-    #     return f"{random.randint(0, 59)} {random.randint(0, 23)} */14 * *"
-    else:
-        # Older than 4.12, bi-weekly at random time between 1:00 and 10:00
-        # First occurrence between 5th and 10th day, second between 15th and 25th day
-        cron_string = lambda: f"{random.randint(1, 59)} {random.randint(1, 10)} {random.choice([5, 6, 7, 8, 9, 10])},{random.randint(15, 25)} * *"
-        return cron_string()
 
 def process_interval(test, ver):
     # logging.info("We entered process_interval")
@@ -48,9 +34,7 @@ def process_interval(test, ver):
     name = test['as'] if 'as' in test else test['name']
     
     # If these conditions are met, log and return an empty list
-    if ver == "4.12" or name.startswith("promote-") or name.startswith("mirror-nightly-image"):
-        if ver == "4.12":
-            logging.info(f"Found and ignored 4.12 {name}")
+    if name.startswith("promote-") or name.startswith("mirror-nightly-image"):
         if name.startswith("promote-"):
             logging.info(f"Found and ignored promote test {name}")
         if name.startswith("mirror-nightly-image"):
@@ -62,10 +46,13 @@ def process_interval(test, ver):
     if 'interval' in test:
         interval = test['interval'].strip()
         
-        if 'cron' in test:
+        if interval in keep_intervals:
+            # Do nothing, keep the interval
+            pass
+        elif 'cron' in test:
             del test['interval']
             changes_made.append(f"Removed interval for {name}")
-        elif 'cron' not in test:
+        else:
             del test['interval']
             test['cron'] = cron_string(ver)
             changes_made.append(f"Replaced interval with cron for {name}")
@@ -73,28 +60,23 @@ def process_interval(test, ver):
     return changes_made
 
 def process_cron(test, ver):
-    # logging.info("We entered process_cron")
     changes_made = []
     name = test['as'] if 'as' in test else test['name']
-    logging.info(f'Found test in \033[94m{name}\033[0m with cron \033[92m{test["cron"]}\033[0m')
-
-    if ver == "4.12" or name.startswith("promote-") or name.startswith("mirror-nightly-image"):
-        if ver == "4.12":
-            logging.info(f"Found and ignored 4.12 {name}")
-        if name.startswith("promote-"):
-            logging.info(f"Found and ignored promote test {name}")
-        if name.startswith("mirror-nightly-image"):
-            logging.info(f"Found and ignored mirror-nightly-image test {name}")
+    
+    if name.startswith("promote-") or name.startswith("mirror-nightly-image"):
+        logging.info(f"Found and ignored {name}")
         return []
     
-    # Update the cron based on the version_number
-    test["cron"] = cron_string(ver)  # Assuming cron_string() can accept a version number
-    changes_made.append(f"Updated cron for {name} based on version {ver}")
-
+    logging.info(f'Found test in {name} with cron {test["cron"]}')
+    
+    if test['cron'] not in keep_intervals:
+        new_cron = cron_string(ver)
+        test['cron'] = new_cron
+        changes_made.append(f"Updated cron for {name} to {new_cron}")
+    
     return changes_made
 
 def process_promote(test):
-    # logging.info("We entered process_promote")
     changes_made = []
     name = test['as'] if 'as' in test else test['name']
     logging.info(f'Found promote test {name}')
@@ -108,12 +90,6 @@ def process_promote(test):
 
 def replace(test, ver, filename):
     changes_made = []
-
-    # logging.info(f"We entered replace for file: {filename}")
-
-    # Skip if version is 4.12
-    if ver == "4.12":
-        return changes_made
 
     name = test['as'] if 'as' in test else test['name']
     
@@ -141,11 +117,6 @@ def process_ciops(data, filename):
         ver = section_latest[release_ref].get('name')
     elif 'version_bounds' in section_latest[release_ref]:
         ver = section_latest[release_ref].get('version_bounds', {}).get('upper')
-
-    # Skip if version is 4.12
-    if ver == "4.12":
-        logging.info(f"Skipping file {filename} with version 4.12")
-        return []
 
     # Skip if filename starts with "promote-" or "mirror-nightly-image"
     if filename.startswith("promote-") or filename.startswith("mirror-nightly-image"):
@@ -190,11 +161,6 @@ def process_job(data, filename):
                 continue
             ver = base_ref[1]
             
-            # Skip if version is 4.12
-            if ver == "4.12":
-                logging.info(f"Skipping due to version 4.12")
-                continue
-
             if ver and version_lower_than_or_equal(ver, TARGET_VERSION):
                 version_satisfied = True
                 break

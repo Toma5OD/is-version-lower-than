@@ -1,68 +1,48 @@
-
-# Code Update Summary
+# Python Scripts for Cron/Interval Updates in OpenShift/Release Repo
 
 ## Overview
-This document outlines the significant changes made to the codebase for aligning with the specified JIRA ticket.
+This folder contains Python scripts designed to modify cron/interval values in the OpenShift/Release repository. The scripts target different versions and organizations within the repository.
 
-[JIRA Ticket](https://issues.redhat.com/browse/DPTP-3645)
+### Key Scripts
+- `adapted-original.py`: Alters schedules for version 4.13.
+- `adapted-original-2.py`: Alters schedules for OpenShift org versions 4.11 and lower.
+- `adapted-original-3.py`: Alters schedules for non-OpenShift org versions 4.12 and lower.
 
----
+## Changes Summary
 
-## Changes
+### 4.13 Changes
+- Changes are applied to versions equal to 4.13.
+- Cron schedules more frequent than weekly are changed to weekly.
+- Weekly schedules are randomly set to either Saturday or Sunday.
+- The time for each schedule is randomized.
 
-### Logging
-- Replaced print statements with logging with both verbose and non-verbose modes. Non-verbose commented out for the moment.
+### 4.12 and Lower (Non-OpenShift Org)
+- Applies to versions lower than or equal to 4.12, excluding OpenShift org.
+- Schedules more frequent than bi-weekly are changed to bi-weekly.
+- Bi-weekly schedules are set on two randomly selected days in a month.
+- The time for each schedule is randomized.
 
-### Version Targeting
-- Added a `TARGET_VERSION` constant to focus on versions equal to or below 4.13.
+### 4.11 and Lower (OpenShift Org)
+- Applies to OpenShift org versions 4.11 and lower.
+- Follows similar logic to non-OpenShift org 4.12 and lower changes.
 
-### Specific Version and Job Exclusions
-- Excluded version 4.12 and jobs starting with `promote-` and `mirror-nightly-image`.
+## PR References
+- Changes for 4.13: [PR #46628](https://github.com/openshift/release/pull/46628)
+- Changes for 4.12 and lower: [PR #46628](https://github.com/openshift/release/pull/46628)
 
-### Modularization
-- Broke down the `replace` function into smaller, task-focused functions:
-    - `process_interval`
-    - `process_cron`
-    - `process_promote`
+## Usage
+- Set the `TARGET_VERSION` in the script as required.
+- Run the script providing YAML file paths as arguments.
 
-### Change Logging
-- Added a function `log_changes_to_txt` that logs changes made to YAML files.
-- Can be easily removed.
-### Cron Schedules
-- For version 4.13: 
-    - The cron is set to run weekly.
-    - The day is randomly chosen to be either Saturday or Sunday.
-    - The time is also randomized.
+### Example Command
+```bash
+find your_file_location/ci-operator/config/ your_file_location/ci-operator/jobs/ -name "*.yaml" -exec python your_script_location/main.py {} \;
+```
 
-- For versions older than 4.12:
-    - The cron is set to run bi-weekly.
-    - The day of the first occurrence is randomly chosen between 5th and 10th of the month.
-    - The day of the second occurrence is randomly chosen between 15th and 25th of the month.
-    - The time is randomized between 1:00 and 10:00.
----
+## Post-Script Steps
+- Use `make update` command to ensure no changes from double to single quotes in YAML files.
 
-## How to Use
-1. Make sure to specify the `TARGET_VERSION`.
-2. Run the script with the YAML file as an argument.
+## Notes
+- The scripts log changes to YAML files for transparency.
+- Discuss any issues or uncertainties in a 1-1 setting for clarity.
 
-### Command to Run
-
-```find your_file_location/ci-operator/config/ your_file_location/ci-operator/jobs/ -name "*.yaml" -exec python your_script_location/main.py {} \; ```
-
-Check the [changes_log.txt](./changes_log.txt) for a detailed list of changes made.
-
-
----
-## Possible Issues
-
-### Unrecognized base_ref ['master']
-- If you encounter this issue, it suggests that the `base_ref` is not in the expected format.
-- This was in the original script and it was dealt with in a similar way. I just don't fully understand it.
-![Unrecognized base_ref Example](./Public/3.png)
-
-### 4.12.0-0
-- This is probably fine but I'm not confident and I would like help understanding if this differs from 4.12 completely as it is a 4.11 file or if it is something to be concerned about.
-- The code currently does not carry out changes on anything with 4.12.0-0 but this can easily be resoleved.
-![4.12.0-0 Example](./Public/1.png)
-
-For all issues, it's recommended to discuss them in a 1-1 setting for better clarity and resolution.
